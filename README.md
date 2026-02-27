@@ -1,5 +1,4 @@
-# 鸣潮工具 — 伤害计算器与副词条权重分析
-
+# 基于发现漂泊助手停更了于是心血来潮找ai一顿搓。。。。
 一个基于 Next.js 14 和 TypeScript 的鸣潮（Wuthering Waves）伤害计算与副词条权重分析小工具。用于学习、理论构建与模拟伤害分布分析，与游戏官方无关。
 
 ## 主要功能
@@ -9,6 +8,26 @@
 - **完整伤害计算**：按游戏内逻辑拆分乘区并展示每一步计算细节（倍率、暴击、增伤、防守/抗性修正等）。
 - **伤害分布可视化**：自定义 SVG 饼图展示技能类型与伤害类型占比，并显示总伤害与图例。
 - **副词条权重分析（Substat）**：提供副词条权重评估工具，帮助比较不同词条对输出的贡献。
+
+## 伤害计算核心概念
+
+参考金铃子攻略组 
+【【鸣潮】伤害论 伤害乘区与稀释详解 怎么样才能最大化输出？《鸣潮》底层机制系列01】https://www.bilibili.com/video/BV1VZ42147px?vd_source=84c1b718ffa4d4e245920fbff526636d
+<img width="296" height="244" alt="image" src="https://github.com/user-attachments/assets/274ea55f-172e-4b2b-ace3-ac1e1c609a5e" />
+
+伤害计算公式：
+<img width="1719" height="408" alt="image" src="https://github.com/user-attachments/assets/8a3cc414-98e6-4c58-8931-632376259933" />
+
+### 说明：
+鸣潮文字公式内容是从某贴里找到的。不是很懂（）
+
+详细计算会在技能详情展开时列出每个乘区与中间结果，方便验证与教学。
+
+## 添加新角色 / 新数据
+
+1. 在 `data/characters/` 新建 `.ts` 文件，参考现有角色文件格式导出 `Character` 对象。
+2. 在 `data/index.ts` 中引入并导出新角色。
+3. 如需新增声骸或武器，同样遵循 `data/echoes/` 与 `data/weapons/` 的分文件规范。
 
 ## 快速开始
 
@@ -53,15 +72,6 @@ wuthering-waves-calc/
 └── README.md                # 本文件
 ```
 
-项目内含的 `data/echoes/` 目录示例文件：
-
-- `xinjilemu.ts`
-- `fuludelis.ts`
-- `kaierpi.ts`
-- `kuxinzhedezuosong.ts`
-- `xiaoyilong_rerong.ts`
-- `xiaoyilong_yanshe.ts`
-
 静态资源命名规范（示例）
 
 - 角色：`T_Luckdraw_<name>_UI.png`
@@ -70,42 +80,11 @@ wuthering-waves-calc/
 
 将对应图片放在 `public/characters/`、`public/weapons/`、`public/echoes/` 目录以便前端展示。
 
-## 伤害计算核心概念
-
-最终伤害由多个乘区组合而成：
-
-```
-最终伤害 = 基础乘区 × 技能倍率乘区 × 倍率提升乘区 × 暴击倍率乘区 × 伤害加深乘区 × 伤害加成乘区 × 防御乘区 × 抗性乘区 × 次数乘区
-```
-
-要点说明：
-
-- **增加倍率（Add）**：加算项（与相同描述合并）。
-- **提升倍率（Multiply）**：乘算项（与不同描述互相相乘）。
-- **造成伤害提升**：增伤类效果，直接提升输出。
-- **受到伤害提升**：乘区类效果，按游戏规则参与乘算。
-
-详细计算会在技能详情展开时列出每个乘区与中间结果，方便验证与教学。
-
-## 添加新角色 / 新数据
-
-1. 在 `data/characters/` 新建 `.ts` 文件，参考现有角色文件格式导出 `Character` 对象。
-2. 在 `data/index.ts` 中引入并导出新角色。
-3. 如需新增声骸或武器，同样遵循 `data/echoes/` 与 `data/weapons/` 的分文件规范。
-
 ## 贡献与开发者说明
 
 - 代码风格：TypeScript + Tailwind CSS，使用 Next.js 14 App Router。
-- 建议分支：`feature/*` 或 `fix/*`，提交时请附上简短描述与复现步骤。
-- 运行与调试：使用浏览器开发者工具与组件内的日志/断点调试计算流程。
-
-如果你想要我帮助：
-
-- 添加新角色 / 武器数据
-- 调整或优化伤害计算逻辑
-- 添加更多可视化或导出功能
-
-告诉我你想实现的具体项，我可以继续修改代码并运行测试。
+- Claude sonnet 4.5/4.6
+- gpt 5.1 mini
 
 ## 许可证
 
