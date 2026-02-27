@@ -1,4 +1,4 @@
-出于发现漂泊助手停更了于是心血来潮找ai一顿搓。。。。
+## 基于发现漂泊助手停更了于是心血来潮找ai一顿搓。。。。
 一个基于 Next.js 14 和 TypeScript 的鸣潮（Wuthering Waves）伤害计算与副词条权重分析小工具。用于学习、理论构建与模拟伤害分布分析，与游戏官方无关。
 
 ## 主要功能
@@ -13,11 +13,13 @@
 
 参考金铃子攻略组 
 【【鸣潮】伤害论 伤害乘区与稀释详解 怎么样才能最大化输出？《鸣潮》底层机制系列01】https://www.bilibili.com/video/BV1VZ42147px?vd_source=84c1b718ffa4d4e245920fbff526636d
+<img width="296" height="244" alt="image" src="https://github.com/user-attachments/assets/274ea55f-172e-4b2b-ace3-ac1e1c609a5e" />
 
+伤害计算公式：
 <img width="1719" height="408" alt="image" src="https://github.com/user-attachments/assets/8a3cc414-98e6-4c58-8931-632376259933" />
 
-说明：
-鸣潮文字公式内容是从某贴里找到的。
+# 说明：
+鸣潮文字公式内容是从某贴里找到的。不是很懂（）
 
 详细计算会在技能详情展开时列出每个乘区与中间结果，方便验证与教学。
 
