@@ -38,6 +38,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"技能名字"|"伤害类型"|"技能类型">("技能名字");
   const [damageViewMode, setDamageViewMode] = useState<"期望"|"暴击"|"不暴击">("期望");
   const [expandedSkillDetails, setExpandedSkillDetails] = useState<Set<string>>(new Set());
+  const [showSkillDetailList, setShowSkillDetailList] = useState(true);
   // 乘区展开状态
   const [expandedMultiplier, setExpandedMultiplier] = useState<string | null>(null);
   
@@ -2120,7 +2121,8 @@ export default function Home() {
               </button>
             </div>
             
-            {showRotationConfig && (
+            <div className={`grid transition-all duration-300 ease-in-out ${showRotationConfig ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+              <div className="overflow-hidden">
               <div className="space-y-4">
                 <div className="flex gap-2 flex-wrap">
                   {character.skills.map((skill: CharacterSkill, idx: number) => (
@@ -2200,7 +2202,8 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            )}
+              </div>
+            </div>
           </div>
 
           {/* 伤害分布 */}
@@ -2278,7 +2281,17 @@ export default function Home() {
               
               {/* 技能详细列表 */}
               <div className="mt-6 space-y-2">
-                <h3 className="font-semibold text-gray-700 mb-3">技能详情：</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-700">技能详情：</h3>
+                  <button
+                    onClick={() => setShowSkillDetailList(prev => !prev)}
+                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-all duration-200 hover:scale-105 active:scale-95 text-sm"
+                  >
+                    {showSkillDetailList ? "隐藏" : "展开"}
+                  </button>
+                </div>
+                <div className={`grid transition-all duration-300 ease-in-out ${showSkillDetailList ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden space-y-2">
                 {rotationDamage.results.map((result, idx) => (
                   <div key={idx} className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex justify-between items-center">
@@ -2300,7 +2313,9 @@ export default function Home() {
                       </button>
                     </div>
                     
-                    {expandedSkillDetails.has(result.skillName) && result.damageDetail && (
+                    <div className={`grid transition-all duration-300 ease-in-out ${expandedSkillDetails.has(result.skillName) && result.damageDetail ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                    <div className="overflow-hidden">
+                    {result.damageDetail && (
                       <div className="mt-3 p-3 bg-white rounded space-y-2 text-sm border border-gray-200">
                         {/* 检查是否为震谐伤害或效应伤害 - 使用特殊显示 */}
                         {(result.skill.damageType === "震谐伤害" || result.skill.damageType === "效应伤害") ? (
@@ -2344,7 +2359,7 @@ export default function Home() {
                             {/* 基础乘区 */}
                             <div className="p-2 bg-gray-50 rounded">
                               <p className="font-semibold text-gray-700 mb-1">基础乘区: <span className="font-mono">{result.damageDetail.baseDamage.toFixed(2)}</span></p>
-                              <p className="text-xs text-gray-600">根据角色缩放模板（{character.baseStats.scalingTemplate}）计算</p>
+                              <p className="text-xs text-gray-600">根据技能缩放模板（{result.skill.scalingTemplate ?? "攻击"}）计算</p>
                             </div>
                             
                             {/* 技能倍率 */}
@@ -2440,8 +2455,12 @@ export default function Home() {
                         )}
                       </div>
                     )}
+                    </div>
+                    </div>
                   </div>
                 ))}
+                </div>
+                </div>
               </div>
             </div>
           )}
@@ -2459,8 +2478,9 @@ export default function Home() {
                 </button>
               </div>
               
-              {showSubStatWeight && (
-                <div className="space-y-4 transition-all duration-300 ease-in-out">
+              <div className={`grid transition-all duration-300 ease-in-out ${showSubStatWeight ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden">
+                <div className="space-y-4">
                   {/* 提示：需要配置技能流程 */}
                   {skillRotation.length === 0 && (
                     <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-300">
@@ -2650,7 +2670,8 @@ export default function Home() {
                     );
                   })()}
                 </div>
-              )}
+                </div>
+              </div>
             </div>
           )}
 

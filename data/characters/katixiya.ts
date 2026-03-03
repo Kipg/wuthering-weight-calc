@@ -8,7 +8,6 @@ export const KATIXIYA: Character = {
     rarity: 5,
     weaponType: "迅刀",
     elementType: "气动伤害",
-    scalingTemplate: "生命",
     
     level: 90,
     levelList: [20, 40, 50, 60, 70, 80, 90],
@@ -27,18 +26,19 @@ export const KATIXIYA: Character = {
   },
   
   skills: [
-    // ========== 常态攻击 ==========
+    // ========== 常态攻击==========
     {
       name: "第一段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [0.0241, 0.0260, 0.0280, 0.0308, 0.0327, 0.0350, 0.0382, 0.0413, 0.0445, 0.0478],
-      zoneBonus: 0
     },
     {
       name: "第二段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [
@@ -47,22 +47,22 @@ export const KATIXIYA: Character = {
         0.0314 * 2 + 0.0419, 0.0340 * 2 + 0.0453, 0.0366 * 2 + 0.0488,
         0.0394 * 2 + 0.0525
       ],
-      zoneBonus: 0
     },
     {
       name: "第三段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [
         0.0215 * 4, 0.0233 * 4, 0.0251 * 4, 0.0275 * 4, 0.0293 * 4,
         0.0313 * 4, 0.0341 * 4, 0.0370 * 4, 0.0398 * 4, 0.0428 * 4
       ],
-      zoneBonus: 0
     },
     {
       name: "第四段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [
@@ -71,22 +71,22 @@ export const KATIXIYA: Character = {
         0.0201 * 3 + 0.0602, 0.0218 * 3 + 0.0652, 0.0234 * 3 + 0.0702,
         0.0252 * 3 + 0.0754
       ],
-      zoneBonus: 0
     },
     {
       name: "闪避反击伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [
         0.0345 * 4, 0.0373 * 4, 0.0401 * 4, 0.0441 * 4, 0.0469 * 4,
         0.0502 * 4, 0.0547 * 4, 0.0592 * 4, 0.0637 * 4, 0.0685 * 4
       ],
-      zoneBonus: 0
     },
     {
       name: "重击伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "重击",
       skillCategory: "常态攻击",
       multiplierList: [
@@ -95,51 +95,51 @@ export const KATIXIYA: Character = {
         0.0166 * 3 + 0.0498, 0.0180 * 3 + 0.0539, 0.0194 * 3 + 0.0580,
         0.0208 * 3 + 0.0624
       ],
-      zoneBonus: 0
     },
     {
       name: "空中攻击",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [0.0284, 0.0308, 0.0331, 0.0364, 0.0387, 0.0414, 0.0451, 0.0488, 0.0525, 0.0565],
-      zoneBonus: 0
     },
     {
-      name: "空中回收第一剑",
+      name: "空中回收第一段",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [0.0284, 0.0308, 0.0331, 0.0364, 0.0387, 0.0414, 0.0451, 0.0488, 0.0525, 0.0565],
-      zoneBonus: 0
     },
     {
-      name: "空中回收第二剑",
+      name: "空中回收第二段",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [
         0.0166 * 3, 0.0180 * 3, 0.0193 * 3, 0.0212 * 3, 0.0226 * 3,
         0.0241 * 3, 0.0263 * 3, 0.0285 * 3, 0.0307 * 3, 0.0330 * 3
       ],
-      zoneBonus: 0
     },
     {
-      name: "空中回收第三剑",
+      name: "空中回收第三段",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "常态攻击",
       multiplierList: [
         0.0568 * 3, 0.0615 * 3, 0.0661 * 3, 0.0727 * 3, 0.0773 * 3,
         0.0827 * 3, 0.0901 * 3, 0.0976 * 3, 0.1050 * 3, 0.1129 * 3
       ],
-      zoneBonus: 0
     },
     
-    // ========== 共鸣技能 ==========
+    // ========== 共鸣技能==========
     {
       name: "共鸣技能·此剑以人之名",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "共鸣技能",
       skillCategory: "共鸣技能",
       multiplierList: [
@@ -148,13 +148,13 @@ export const KATIXIYA: Character = {
         0.0550 * 3 + 0.0707, 0.0596 * 3 + 0.0766, 0.0641 * 3 + 0.0824,
         0.0689 * 3 + 0.0886
       ],
-      zoneBonus: 0
     },
     
     // ========== 共鸣回路 ==========
     {
       name: "共鸣技能·此剑为潮浪之意",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "共鸣技能",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -163,11 +163,11 @@ export const KATIXIYA: Character = {
         0.0149 * 2 + 0.0561 * 3, 0.0161 * 2 + 0.0607 * 3, 0.0173 * 2 + 0.0654 * 3,
         0.0186 * 2 + 0.0703 * 3
       ],
-      zoneBonus: 0
     },
     {
-      name: "共鸣技能·凭风斩浪破敌",
+      name: "共鸣技能·凭风斩浪破空",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "共鸣技能",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -176,19 +176,19 @@ export const KATIXIYA: Character = {
         0.0149 * 4 + 0.1385, 0.0161 * 4 + 0.1500, 0.0173 * 4 + 0.1614,
         0.0186 * 4 + 0.1736
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·第一段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [0.0327, 0.0354, 0.0380, 0.0418, 0.0445, 0.0475, 0.0518, 0.0561, 0.0604, 0.0649],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·第二段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -197,11 +197,11 @@ export const KATIXIYA: Character = {
         0.0289 + 0.0145 * 3, 0.0313 + 0.0157 * 3, 0.0337 + 0.0169 * 3,
         0.0363 + 0.0182 * 3
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·第三段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -210,22 +210,22 @@ export const KATIXIYA: Character = {
         0.0170 * 3 + 0.0340, 0.0184 * 3 + 0.0368, 0.0198 * 3 + 0.0396,
         0.0213 * 3 + 0.0426
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·第四段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
         0.0138 * 5, 0.0149 * 5, 0.0161 * 5, 0.0177 * 5, 0.0188 * 5,
         0.0201 * 5, 0.0219 * 5, 0.0237 * 5, 0.0255 * 5, 0.0274 * 5
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·第五段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -233,11 +233,11 @@ export const KATIXIYA: Character = {
         0.0493 + 0.1971, 0.0527 + 0.2108, 0.0575 + 0.2298, 0.0622 + 0.2488,
         0.0670 + 0.2678, 0.0720 + 0.2880
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·空中攻击第一段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -246,11 +246,11 @@ export const KATIXIYA: Character = {
         0.0238 * 2 + 0.0246, 0.0258 * 2 + 0.0266, 0.0278 * 2 + 0.0286,
         0.0299 * 2 + 0.0308
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·空中攻击第二段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -259,19 +259,19 @@ export const KATIXIYA: Character = {
         0.0589 * 2 + 0.1178, 0.0638 * 2 + 0.1276, 0.0687 * 2 + 0.1373,
         0.0739 * 2 + 0.1477
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·空中攻击第三段伤害",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [0.0111, 0.0120, 0.0129, 0.0142, 0.0151, 0.0161, 0.0176, 0.0190, 0.0205, 0.0220],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·重击",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "重击",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -279,11 +279,11 @@ export const KATIXIYA: Character = {
         0.0293 + 0.0683, 0.0313 + 0.0730, 0.0341 + 0.0796, 0.0369 + 0.0861,
         0.0398 + 0.0927, 0.0428 + 0.0997
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·强化重击",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "重击",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -292,22 +292,22 @@ export const KATIXIYA: Character = {
         0.0621 * 2 + 0.0311, 0.0672 * 2 + 0.0336, 0.0723 * 2 + 0.0362,
         0.0778 * 2 + 0.0389
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·上挑攻击",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
         0.0229 * 2, 0.0248 * 2, 0.0266 * 2, 0.0292 * 2, 0.0311 * 2,
         0.0333 * 2, 0.0363 * 2, 0.0393 * 2, 0.0423 * 2, 0.0454 * 2
       ],
-      zoneBonus: 0
     },
     {
       name: "芙露德莉斯·闪避反击",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "普攻",
       skillCategory: "共鸣回路",
       multiplierList: [
@@ -316,28 +316,27 @@ export const KATIXIYA: Character = {
         0.0255 * 3 + 0.0510, 0.0276 * 3 + 0.0552, 0.0297 * 3 + 0.0594,
         0.0320 * 3 + 0.0639
       ],
-      zoneBonus: 0
     },
     
     // ========== 共鸣解放 ==========
     {
-      name: "共鸣解放·看潮怒风哮之刃",
+      name: "共鸣解放·看潮怒风哮之息",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "共鸣解放",
       skillCategory: "共鸣解放",
       multiplierList: [
         0.0660 * 7, 0.0714 * 7, 0.0768 * 7, 0.0844 * 7, 0.0898 * 7,
         0.0961 * 7, 0.1047 * 7, 0.1134 * 7, 0.1220 * 7, 0.1312 * 7
       ],
-      zoneBonus: 0
     },
     {
       name: "共鸣解放：听骑士从心祈愿",
       skillLevel: 10,
+      scalingTemplate: "生命",
       damageType: "无伤害",
       skillCategory: "共鸣解放",
       multiplierList: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      zoneBonus: 0
     }
   ],
   
@@ -349,7 +348,7 @@ export const KATIXIYA: Character = {
   passiveSkills: [
     {
       name: "以心织就颂愿",
-      description: "队伍中除【卡提希娅】、【芙露德莉斯】以外的角色受到的治疗效果提升20%，抗打断能力提升；若漂泊者·气动处于同一编队中，则漂泊者·气动施放万象归墟时，额外获得25点【弦风息】。",
+      description: "队伍中除【卡提希娅】、【芙露德莉斯】以外的角色受到的治疗效果提升10%，抗打断能力提升；若漂泊者·气动处于同一编队中，则漂泊者·气动施放万象归墟时，额外获得15点【弦风息】。",
       enabled: false,
       effectScope: "队友加成",
       effects: {
@@ -358,7 +357,7 @@ export const KATIXIYA: Character = {
     },
     {
       name: "以风刻痕留蚀",
-      description: "当目标拥有1到3层【风蚀效应】，【卡提希娅】与【芙露德莉斯】对其造成的伤害提升30%；当目标拥有3层以上【风蚀效应】时，每层【风蚀效应】使【卡提希娅】与【芙露德莉斯】对其造成的伤害额外提升10%，该效果最多可叠加3层。",
+      description: "当目标拥有1-3层【风蚀效应】，【卡提希娅】与【芙露德莉斯】对其造成的伤害提升10%；当目标拥有3层以上【风蚀效应】时，每层【风蚀效应】使【卡提希娅】与【芙露德莉斯】对其造成的伤害额外提升10%，该效果最多可叠加3层。",
       enabled: false,
       effectScope: "倍率提升",
       effects: {

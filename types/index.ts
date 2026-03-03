@@ -49,7 +49,6 @@ export interface CharacterBaseStats {
   rarity: Rarity;
   weaponType: WeaponType;
   elementType: ElementType;
-  scalingTemplate: ScalingTemplate;
   
   // 等级相关
   level: number;
@@ -74,11 +73,11 @@ export interface CharacterBaseStats {
 export interface CharacterSkill {
   name: string;
   skillLevel: number; // 1-10
+  scalingTemplate?: ScalingTemplate; // 技能缩放模板，默认"攻击"
   damageType: DamageType;
   skillCategory: SkillCategory;
   multiplierList: number[]; // 对应技能等级的倍率
   flatValueList?: number[]; // 治疗技能的扁平值（不参与倍率计算，直接累加到最终结果）
-  zoneBonus: number; // 乘区加成，默认0
 }
 
 export interface CharacterBranchStats {

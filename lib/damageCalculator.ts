@@ -427,7 +427,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   
   // ========== 1. 基础乘区 ==========
   let baseDamage = 0;
-  switch (character.baseStats.scalingTemplate) {
+  switch (selectedSkill.scalingTemplate ?? "攻击") {
     case "攻击":
       baseDamage = combatStats.totalATK;
       break;
