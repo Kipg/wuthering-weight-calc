@@ -248,7 +248,7 @@ export const QIANXIAO: Character = {
       effectScope: "防御乘区",
       effects: {
         value: 0.18,
-        statBonus: { "无视防御率: 0.18 }
+        statBonus: { "无视防御率": 0.18 }
       }
     },
     // ========== 每点【锯环残响】增加倍率 ==========
@@ -282,7 +282,7 @@ export const QIANXIAO: Character = {
         stateKey: "jvhuancanxiang",
         min: 0,
         max: 100,
-        suffix: "层
+        suffix: "层"
       }
     },
     // ========== 万缕·汇终 ==========
@@ -316,7 +316,7 @@ export const QIANXIAO: Character = {
       description: "附近队伍中所有角色获得拖曳终焉之弦，持续20秒。拖曳终焉之弦状态下：攻击命中后，使目标【异常效应】、【电磁爆发】层数上限增加1层，持续15秒。该效果无法叠加。附加【异常效应】或造成异常效应伤害后，获得虚湮之线，持续15秒。",
       effectScope: "防御乘区",
       effects: {
-        statBonus: { "无视防御率: 0.18 }
+        statBonus: { "无视防御率": 0.18 }
       }
     }
   ]

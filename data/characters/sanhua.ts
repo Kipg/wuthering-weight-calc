@@ -167,7 +167,7 @@ export const SANHUA: Character = {
       effectScope: "倍率提升",
       effects: {
         value: 0.20,
-        statBonus: { "共鸣技能伤害提升: 0.20 }
+        statBonus: { "共鸣技能伤害提升": 0.20 }
       },
       affectedSkillTypes: ["共鸣技能", "共鸣回路"]
     }
