@@ -1,6 +1,135 @@
 // 鸣潮 - 爱弥斯角色数据
 
-import { Character } from "@/types";
+import { Character, CharacterDamagePlugin } from "@/types";
+import { calculateZhenxieDamage, calculateZhenxieResponseDamage } from "@/lib/zhenxieCalculator";
+import { calculateJubaoEffectDamage, getJubaoUpperLimit, getWindErosionMultiplierBoost } from "@/lib/effectCalculator";
+
+// ============ 爱弥斯伤害计算插件 ============
+
+const aimisiPlugin: CharacterDamagePlugin = {
+  // 根据共鸣模态过滤"星与星之间"被动（震谐/聚爆互斥）
+  shouldSkipPassive(passive, input) {
+    if (passive.name === "星与星之间·震谐" || passive.name === "星与星之间·聚爆") {
+      const resonanceMode = input.aimisiConfig?.resonanceMode ?? "震谐";
+      if (passive.name === "星与星之间·震谐" && resonanceMode !== "震谐") return true;
+      if (passive.name === "星与星之间·聚爆" && resonanceMode !== "聚爆") return true;
+    }
+    return false;
+  },
+
+  // 处理震谐伤害和效应伤害（绕过通用乘区公式）
+  calculateSpecialDamage(input, selectedSkill) {
+    const aimisiConfig = input.aimisiConfig;
+    const chainLevel = aimisiConfig?.chainLevel ?? 0;
+
+    if (selectedSkill.damageType === "震谐伤害") {
+      const skillMultiplier = selectedSkill.multiplierList[selectedSkill.skillLevel - 1];
+      if (selectedSkill.name === "震谐响应·星爆伤害") {
+        return calculateZhenxieResponseDamage(skillMultiplier);
+      }
+      if (selectedSkill.name === "光翼共奏追加伤害·震谐" && aimisiConfig?.resonanceMode === "震谐") {
+        const chain2En = chainLevel >= 2;
+        let damage = calculateZhenxieDamage(
+          skillMultiplier,
+          aimisiConfig.zhenxieTrackStacks || 0,
+          aimisiConfig.xingchenZhenxieEnabled || false,
+          chain2En
+        );
+        // 6链：震谐伤害可暴击，固定按暴击值（×2.75）计算
+        if (chainLevel >= 6) damage *= 2.75;
+        return damage;
+      }
+      return 0;
+    }
+
+    if (selectedSkill.damageType === "效应伤害") {
+      if (aimisiConfig?.resonanceMode === "聚爆") {
+        const jubaoUpperLimit = getJubaoUpperLimit(input.teammates);
+        const chain2En = chainLevel >= 2;
+        let damage = calculateJubaoEffectDamage(
+          aimisiConfig.jubaoTrackStacks || 1,
+          jubaoUpperLimit,
+          aimisiConfig.xingchenJubaoEnabled || false,
+          chain2En
+        );
+        // 6链：效应伤害可暴击，固定按暴击值（×2.75）计算
+        if (chainLevel >= 6) damage *= 2.75;
+        return damage;
+      }
+      return 0;
+    }
+
+    return null; // 非特殊类型，走通用乘区公式
+  },
+
+  // 注入链度加成和风蚀效应加成（在通用乘区计算完成后调用）
+  modifyDamageContext(input, selectedSkill) {
+    const aimisiConfig = input.aimisiConfig;
+    const chainLevel = aimisiConfig?.chainLevel ?? 0;
+
+    const multiplierBoostEntries: Array<{ value: number; note: string }> = [];
+    const damageBonusEntries: Array<{ value: number; note: string }> = [];
+    let critDMGAdd: number | undefined;
+    let receiveDamageMultiplier: number | undefined;
+
+    // ── 风蚀效应倍率提升 ──
+    const windErosionStacks = (input.effectStacks?.["风蚀效应"]) ?? 0;
+    if (windErosionStacks > 0) {
+      const windBoost = getWindErosionMultiplierBoost(windErosionStacks);
+      if (windBoost > 0) {
+        multiplierBoostEntries.push({
+          value: windBoost,
+          note: `风蚀效应(${windErosionStacks}层): +${(windBoost * 100).toFixed(1)}%`
+        });
+      }
+    }
+
+    // ── 1链：重击暴击伤害 +300% ──
+    if (chainLevel >= 1) {
+      const chainHeavySkills = [
+        "重击·一段蓄力伤害", "重击·二段蓄力伤害",
+        "机兵·重击·一段蓄力伤害", "机兵·重击·二段蓄力伤害"
+      ];
+      if (chainHeavySkills.includes(selectedSkill.name)) {
+        critDMGAdd = 3.0;
+      }
+    }
+
+    // ── 2链：光翼共奏·登台/降临 倍率提升 +100% ──
+    if (chainLevel >= 2) {
+      const chain2SkillNames = ["光翼共奏·登台伤害", "光翼共奏·降临伤害"];
+      if (chain2SkillNames.includes(selectedSkill.name)) {
+        multiplierBoostEntries.push({ value: 1.0, note: "2链：光翼共奏倍率提升 +100%" });
+      }
+    }
+
+    // ── 3链：共鸣解放倍率提升 ──
+    if (chainLevel >= 3) {
+      if (selectedSkill.name === "星辉破界而来·终结") {
+        multiplierBoostEntries.push({ value: 1.0, note: "3链：共鸣解放·终结倍率提升 +100%" });
+      } else if (selectedSkill.name === "星辉破界而来·过载") {
+        multiplierBoostEntries.push({ value: 0.4, note: "3链：共鸣解放·过载倍率提升 +40%" });
+      }
+    }
+
+    // ── 4链：全属性伤害加成 +20% ──
+    if (chainLevel >= 4) {
+      damageBonusEntries.push({ value: 0.2, note: "4链：全属性伤害加成 +20%" });
+    }
+
+    // ── 6链：共鸣解放受到伤害提升 ×1.4 ──
+    if (chainLevel >= 6 && selectedSkill.skillCategory === "共鸣解放") {
+      receiveDamageMultiplier = 1.4;
+    }
+
+    return {
+      critDMGAdd,
+      multiplierBoostEntries: multiplierBoostEntries.length > 0 ? multiplierBoostEntries : undefined,
+      damageBonusEntries: damageBonusEntries.length > 0 ? damageBonusEntries : undefined,
+      receiveDamageMultiplier,
+    };
+  },
+};
 
 export const AIMISI: Character = {
   baseStats: {
@@ -179,9 +308,16 @@ export const AIMISI: Character = {
       multiplierList: [3.0000,3.2460,3.4920,3.8364,4.0824,4.3653,4.7589,5.1525,5.5461,5.9643],
     },
     {
-      name: "光翼共奏追加伤害（每次）",
+      name: "光翼共奏追加伤害·震谐",
       skillLevel: 10,
       damageType: "震谐伤害",
+      skillCategory: "共鸣回路",
+      multiplierList: [0.5500,0.5951,0.6402,0.7034,0.7485,0.8004,0.8725,0.9447,1.0168,1.0935],
+    },
+    {
+      name: "光翼共奏追加伤害·聚爆",
+      skillLevel: 10,
+      damageType: "效应伤害",
       skillCategory: "共鸣回路",
       multiplierList: [0.5500,0.5951,0.6402,0.7034,0.7485,0.8004,0.8725,0.9447,1.0168,1.0935],
     },
@@ -337,14 +473,44 @@ export const AIMISI: Character = {
       { stateKey: "resonanceMode", stateValue: "震谐", excludeSkillNameContains: "聚爆" },
       { stateKey: "resonanceMode", stateValue: "聚爆", excludeSkillNameContains: "震谐" }
     ],
-    rotationButtons: [
-      {
-        showWhen: { key: "resonanceMode", value: "震谐" },
-        buttonLabel: "+ 震谐干涉标记",
-        skillName: "震谐干涉标记",
-        type: "zhenxieInterference",
-        buttonClass: "px-3 py-2 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 transition-all duration-200 hover:scale-105 active:scale-95 text-sm font-semibold border-2 border-yellow-400"
-      }
-    ]
-  }
+  },
+
+  chainBonuses: [
+    {
+      level: 0,
+      description: "无链度加成。",
+    },
+    {
+      level: 1,
+      description: "即刻响应状态下，重击·爱弥斯、重击·机兵暴击伤害提升300%，且蓄力期间可牵引周围的目标。\n爱弥斯满足以下条件超过4秒时，获得即刻响应·辉芒状态。\n·处于非战斗状态。\n·未处于重击·爱弥斯、重击·机兵、共鸣解放星辉破界而来·终结施放状态。\n即刻响应·辉芒拥有即刻响应的所有效果，且即刻响应·辉芒不会因星辉破界而来·于此释放状态结束而移除。\n处于即刻响应·辉芒状态且不处于星辉破界而来·于此释放状态，施放重击·爱弥斯·二段蓄力或重击·机兵·二段蓄力时，可获得100点【同步率】。\n处于共鸣模态·震谐/共鸣模态·聚爆时，爱弥斯自身施放的技能直接造成的伤害击败被附加震谐轨迹/聚爆轨迹状态的敌人时，获得轨迹封存·震谐/轨迹封存·聚爆状态，持续10秒。\n轨迹封存·震谐/轨迹封存·聚爆状态下保留击败目标被附加震谐轨迹/聚爆轨迹的最高层数。\n爱弥斯下一次自身施放的技能直接造成的伤害立即为命中目标附加对应层数的震谐轨迹/聚爆轨迹，最高可叠加至当前目标的震谐轨迹/聚爆轨迹层数上限，同时清除轨迹封存·震谐/轨迹封存·聚爆状态，1秒内无法再次获得轨迹封存·震谐/轨迹封存·聚爆。",
+      effectSummary: "重击（爱弥斯/机兵）暴击伤害 +300%",
+    },
+    {
+      level: 2,
+      description: "共鸣技能光翼共奏·降临的伤害倍率提升100%。\n共鸣技能光翼共奏·登台的伤害倍率提升100%。\n处于共鸣模态·震谐，共鸣技能光翼共奏额外造成的震谐伤害命中目标时，使目标受到共鸣技能光翼共奏额外造成的震谐伤害倍率提升20%，持续1秒，最多叠加5层。\n处于共鸣模态·聚爆获得以下强化：\n·星屑共振状态对共鸣技能光翼共奏引爆的【聚爆效应】伤害倍率提升效果增强，对【聚爆效应】主目标的伤害倍率提升效果提升至400%。\n·聚爆轨迹对共鸣技能光翼共奏引爆的【聚爆效应】伤害倍率提升效果增强，每层对【聚爆效应】主目标的伤害倍率提升效果提升至15%。\n·处于战斗状态，队伍中登场角色附近的敌人被击败时，立即根据【聚爆效应】层数上限引爆【聚爆效应】。",
+      effectSummary: "光翼共奏·登台/降临倍率+100%；震谐追加伤害逐次提升(×1.0→×1.8)；聚爆星屑共振主目标倍率提升至400%；聚爆轨迹每层提升15%",
+    },
+    {
+      level: 3,
+      description: "共鸣解放星辉破界而来·终结的伤害倍率提升100%。\n共鸣解放星辉破界而来·过载的伤害倍率提升40%。\n处于即刻响应状态，施放重击·爱弥斯、重击·机兵时，根据自身处于共鸣模态·震谐/共鸣模态·聚爆，为附近目标附加【震谐·偏移】/【聚爆效应】。\n固有技能星与星之间替换为以下效果：\n·处于共鸣模态·震谐时，队伍中的角色附加【震谐·偏移】或造成震谐伤害时，爱弥斯暴击伤害提升60%，共鸣解放星辉破界而来·终结伤害加深25%。角色编入队伍或切换模态时，重置该效果。\n·处于共鸣模态·聚爆时，队伍中的角色附加【聚爆效应】时，爱弥斯暴击伤害提升60%，共鸣解放星辉破界而来·终结伤害加深25%。角色编入队伍或切换模态时，重置该效果。",
+      effectSummary: "共鸣解放·终结倍率+100%；共鸣解放·过载倍率+40%；星与星之间·震谐/聚爆达到最高层数（暴击伤害+60%，终结伤害加深+25%）",
+    },
+    {
+      level: 4,
+      description: "施放变奏技能以旋律穿越长空、变奏技能携星辉降临于此、共鸣技能合击·突刺、共鸣技能光翼共奏时，队伍中的角色全属性伤害加成提升20%，持续30秒。",
+      effectSummary: "全属性伤害加成 +20%",
+    },
+    {
+      level: 5,
+      description: "爱弥斯自身技能直接造成的伤害击败目标时，【流溢辉光】重置为100%。\n爱弥斯受到致命伤害时，将失去意识并进入二维电子幽灵状态，持续5秒。\n进入二维电子幽灵状态时，为队伍中的角色提供爱弥斯360%攻击的护盾，持续5秒。退出二维电子幽灵状态时，爱弥斯将恢复意识并回复100%生命值与30点共鸣能量。该效果每10分钟可触发1次。\n爱弥斯恢复意识时，退出二维电子幽灵状态并移除该效果提供的护盾。",
+      effectSummary: "（生存/辅助效果，不影响伤害计算）",
+    },
+    {
+      level: 6,
+      description: "目标受到爱弥斯的共鸣解放伤害提升40%。\n处于共鸣模态·震谐时，爱弥斯的震谐伤害可暴击，暴击固定为80%，暴击伤害固定为275%。\n处于共鸣模态·聚爆，并处于战斗状态，队伍中登场角色附近的敌人受到聚爆效应触发的伤害可暴击，暴击固定为80%，暴击伤害固定为275%。\n共鸣回路为寂静赋形为目标附加震谐轨迹、聚爆轨迹层数翻倍。\n处于共鸣模态·震谐/共鸣模态·聚爆，并处于战斗状态，队伍中登场角色附近的敌人震谐轨迹/聚爆轨迹层数上限提升至60层。爱弥斯施放共鸣技能光翼共奏期间，对范围内目标附加10层震谐轨迹/聚爆轨迹，持续30秒。",
+      effectSummary: "共鸣解放受到伤害 ×1.4；震谐伤害/效应伤害可暴击（固定80%暴击率，275%暴击伤害，计算取暴击值）；轨迹层数上限×2",
+    },
+  ],
+
+  damagePlugin: aimisiPlugin,
 };

@@ -13,8 +13,6 @@ import {
   ElementType
 } from "@/types";
 import { ECHO_SETS } from "@/data/sets/echoSets";
-import { calculateZhenxieDamage, calculateZhenxieResponseDamage } from "./zhenxieCalculator";
-import { calculateJubaoEffectDamage, getJubaoUpperLimit } from "./effectCalculator";
 
 /**
  * 根据 statBonus 的 key 名称推断所属乘区：
@@ -297,27 +295,27 @@ export function calculateCombatStats(input: DamageCalculationInput): CombatStats
   // 角色固有技能的面板加成（通用处理：暴击伤害、共鸣效率等）
   const passiveStatBonus: Record<string, number> = {};
   passiveSkills.forEach(passive => {
-    if (passive.enabled && passive.effects.statBonus) {
-      if (passive.effects.conditional && passive.conditionalUI) {
-        // 条件加成（如随风蚀层数变化的暴击伤害）
-        const effectStacks = input.effectStacks || {};
-        const stateKey = passive.conditionalUI.stateKey;
-        const stateValue = effectStacks[stateKey] || 0;
-        const conditionalValue = passive.effects.conditional.values[stateValue] || 0;
-        if (conditionalValue > 0) {
-          Object.entries(passive.effects.statBonus).forEach(([stat]) => {
-            // 只把面板加成类 key 写入 passiveStatBonus
-            if (inferZoneFromKey(stat) !== "面板加成") return;
-            passiveStatBonus[stat] = (passiveStatBonus[stat] || 0) + conditionalValue;
-          });
-        }
-      } else {
-        // 简单静态加成（只写面板加成 key）
-        Object.entries(passive.effects.statBonus).forEach(([stat, value]) => {
+    if (!passive.enabled || !passive.effects.statBonus) return;
+    if (character.damagePlugin?.shouldSkipPassive?.(passive, input)) return;
+    if (passive.effects.conditional && passive.conditionalUI) {
+      // 条件加成（如随风蚀层数变化的暴击伤害）
+      const effectStacks = input.effectStacks || {};
+      const stateKey = passive.conditionalUI.stateKey;
+      const stateValue = effectStacks[stateKey] || 0;
+      const conditionalValue = passive.effects.conditional.values[stateValue] || 0;
+      if (conditionalValue > 0) {
+        Object.entries(passive.effects.statBonus).forEach(([stat]) => {
+          // 只把面板加成类 key 写入 passiveStatBonus
           if (inferZoneFromKey(stat) !== "面板加成") return;
-          passiveStatBonus[stat] = (passiveStatBonus[stat] || 0) + (value as number);
+          passiveStatBonus[stat] = (passiveStatBonus[stat] || 0) + conditionalValue;
         });
       }
+    } else {
+      // 简单静态加成（只写面板加成 key）
+      Object.entries(passive.effects.statBonus).forEach(([stat, value]) => {
+        if (inferZoneFromKey(stat) !== "面板加成") return;
+        passiveStatBonus[stat] = (passiveStatBonus[stat] || 0) + (value as number);
+      });
     }
   });
 
@@ -383,31 +381,12 @@ export function calculateCombatStats(input: DamageCalculationInput): CombatStats
 export function calculateDamage(input: DamageCalculationInput): DamageCalculationResult {
   const { character, weapon, echoes, activeEchoSets, echoSetEnabled, targetLevel, enemyResistance, selectedSkill, critMode } = input;
   
-  // ========== 特殊伤害类型：震谐伤害和效应伤害 ==========
-  // 这些伤害类型不走正常的乘区计算，使用专门的公式
-  if (selectedSkill.damageType === "震谐伤害") {
-    const aimisiConfig = input.aimisiConfig;
-    let finalDamage = 0;
-    
-    // 如果是震谐响应·星爆伤害（目标有震谐干涉标记）
-    if (selectedSkill.name === "震谐响应·星爆伤害" && aimisiConfig?.hasZhenxieInterference) {
-      const skillMultiplier = selectedSkill.multiplierList[selectedSkill.skillLevel - 1];
-      finalDamage = calculateZhenxieResponseDamage(skillMultiplier);
-    }
-    // 如果是光翼共奏追加伤害
-    else if (selectedSkill.name === "光翼共奏追加伤害（每次）" && aimisiConfig?.resonanceMode === "震谐") {
-      const skillMultiplier = selectedSkill.multiplierList[selectedSkill.skillLevel - 1];
-      finalDamage = calculateZhenxieDamage(
-        skillMultiplier,
-        aimisiConfig.zhenxieTrackStacks || 0,
-        aimisiConfig.xingchenZhenxieEnabled || false
-      );
-    }
-    
+  // ========== 特殊伤害类型由角色插件处理（如爱弥斯的震谐伤害、效应伤害）==========
+  if (selectedSkill.damageType === "震谐伤害" || selectedSkill.damageType === "效应伤害") {
+    const specialDamage = character.damagePlugin?.calculateSpecialDamage?.(input, selectedSkill) ?? 0;
     const combatStats = calculateCombatStats(input);
-    
     return {
-      baseDamage: finalDamage,
+      baseDamage: specialDamage,
       skillMultiplier: 1,
       multiplierBoost: 0,
       critMultiplier: 1,
@@ -415,47 +394,10 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
       damageBonus: 1,
       defenseMultiplier: 1,
       resistanceMultiplier: 1,
-      finalDamage,
+      finalDamage: specialDamage,
       combatStats,
       details: {
-        multiplierBoostSources: ["震谐伤害（特殊计算）"],
-        damageDeepenSources: [],
-        damageBonusSources: [],
-        defenseIgnoreSources: [],
-        resistanceReductionSources: []
-      }
-    };
-  }
-  
-  if (selectedSkill.damageType === "效应伤害") {
-    const aimisiConfig = input.aimisiConfig;
-    let finalDamage = 0;
-    
-    // 聚爆效应伤害
-    if (aimisiConfig?.resonanceMode === "聚爆") {
-      const jubaoUpperLimit = getJubaoUpperLimit(input.teammates);
-      finalDamage = calculateJubaoEffectDamage(
-        aimisiConfig.jubaoTrackStacks || 1,
-        jubaoUpperLimit,
-        aimisiConfig.xingchenJubaoEnabled || false
-      );
-    }
-    
-    const combatStats = calculateCombatStats(input);
-    
-    return {
-      baseDamage: finalDamage,
-      skillMultiplier: 1,
-      multiplierBoost: 0,
-      critMultiplier: 1,
-      damageDeepen: 0,
-      damageBonus: 1,
-      defenseMultiplier: 1,
-      resistanceMultiplier: 1,
-      finalDamage,
-      combatStats,
-      details: {
-        multiplierBoostSources: ["效应伤害（特殊计算）"],
+        multiplierBoostSources: [`${selectedSkill.damageType}（特殊计算）`],
         damageDeepenSources: [],
         damageBonusSources: [],
         defenseIgnoreSources: [],
@@ -466,7 +408,33 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   
   // ========== 正常技能伤害计算 ==========
   const combatStats = calculateCombatStats(input);
-  
+
+  // ========== 基础加成（可按技能过滤，直接修正面板属性）==========
+  const adjustedStats = { ...combatStats };
+  if (input.extraBaseBonuses && input.extraBaseBonuses.length > 0) {
+    const _baseATK  = getStatByLevel(character.baseStats.level, character.baseStats.levelList, character.baseStats.baseATKList);
+    const _weapATK  = getStatByLevel(weapon.baseStats.weaponLevel, weapon.baseStats.levelList, weapon.baseStats.baseATKList);
+    const _baseHP   = getStatByLevel(character.baseStats.level, character.baseStats.levelList, character.baseStats.baseHPList);
+    const _baseDEF  = getStatByLevel(character.baseStats.level, character.baseStats.levelList, character.baseStats.baseDEFList);
+    input.extraBaseBonuses.forEach(bonus => {
+      const fm = bonus.filterMode ?? "all";
+      if (fm === "byCategory"   && (!bonus.filterValues || !bonus.filterValues.includes(selectedSkill.skillCategory))) return;
+      if (fm === "byName"       && (!bonus.filterValues || !bonus.filterValues.includes(selectedSkill.name)))          return;
+      if (fm === "byDamageType" && (!bonus.filterValues || !bonus.filterValues.includes(selectedSkill.damageType)))   return;
+      switch (bonus.stat) {
+        case "大攻击":    adjustedStats.totalATK   += (_baseATK + _weapATK) * bonus.value; break;
+        case "大生命":    adjustedStats.totalHP    += _baseHP  * bonus.value; break;
+        case "大防御":    adjustedStats.totalDEF   += _baseDEF * bonus.value; break;
+        case "暴击率":    adjustedStats.critRate    += bonus.value; break;
+        case "暴击伤害":  adjustedStats.critDMG     += bonus.value; break;
+        case "小攻击":    adjustedStats.totalATK   += bonus.value; break;
+        case "小生命":    adjustedStats.totalHP    += bonus.value; break;
+        case "小防御":    adjustedStats.totalDEF   += bonus.value; break;
+        case "共鸣效率":  adjustedStats.energyRegen += bonus.value; break;
+      }
+    });
+  }
+
   // 辅助函数：检查武器效果是否满足效应条件
   const checkWeaponEffectCondition = (effect: any): boolean => {
     if (!effect.effectCondition) return true; // 无条件限制
@@ -485,16 +453,16 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   let baseDamage = 0;
   switch (selectedSkill.scalingTemplate ?? "攻击") {
     case "攻击":
-      baseDamage = combatStats.totalATK;
+      baseDamage = adjustedStats.totalATK;
       break;
     case "生命":
-      baseDamage = combatStats.totalHP;
+      baseDamage = adjustedStats.totalHP;
       break;
     case "防御":
-      baseDamage = combatStats.totalDEF;
+      baseDamage = adjustedStats.totalDEF;
       break;
     case "共鸣效率":
-      baseDamage = combatStats.energyRegen * 100; // 转换为数值
+      baseDamage = adjustedStats.energyRegen * 100; // 转换为数值
       break;
   }
   
@@ -554,10 +522,10 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   let critMultiplier = 1.0;
   switch (critMode) {
     case "期望":
-      critMultiplier = Math.min(combatStats.critRate, 1) * combatStats.critDMG + (1 - Math.min(combatStats.critRate, 1));
+      critMultiplier = Math.min(adjustedStats.critRate, 1) * adjustedStats.critDMG + (1 - Math.min(adjustedStats.critRate, 1));
       break;
     case "暴击":
-      critMultiplier = combatStats.critDMG;
+      critMultiplier = adjustedStats.critDMG;
       break;
     case "不暴击":
       critMultiplier = 1.0;
@@ -618,35 +586,35 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
   const damageBonusSources: string[] = [];
   
   // 元素伤害加成
-  if (combatStats.elementDMG > 0) {
-    damageBonus += combatStats.elementDMG;
-    damageBonusSources.push(`元素伤害: +${(combatStats.elementDMG * 100).toFixed(1)}%`);
+  if (adjustedStats.elementDMG > 0) {
+    damageBonus += adjustedStats.elementDMG;
+    damageBonusSources.push(`元素伤害: +${(adjustedStats.elementDMG * 100).toFixed(1)}%`);
   }
   
   // 伤害类型加成
   switch (selectedSkill.damageType) {
     case "普攻":
-      if (combatStats.normalATKBonus > 0) {
-        damageBonus += combatStats.normalATKBonus;
-        damageBonusSources.push(`普攻加成: +${(combatStats.normalATKBonus * 100).toFixed(1)}%`);
+      if (adjustedStats.normalATKBonus > 0) {
+        damageBonus += adjustedStats.normalATKBonus;
+        damageBonusSources.push(`普攻加成: +${(adjustedStats.normalATKBonus * 100).toFixed(1)}%`);
       }
       break;
     case "重击":
-      if (combatStats.heavyATKBonus > 0) {
-        damageBonus += combatStats.heavyATKBonus;
-        damageBonusSources.push(`重击加成: +${(combatStats.heavyATKBonus * 100).toFixed(1)}%`);
+      if (adjustedStats.heavyATKBonus > 0) {
+        damageBonus += adjustedStats.heavyATKBonus;
+        damageBonusSources.push(`重击加成: +${(adjustedStats.heavyATKBonus * 100).toFixed(1)}%`);
       }
       break;
     case "共鸣技能":
-      if (combatStats.skillBonus > 0) {
-        damageBonus += combatStats.skillBonus;
-        damageBonusSources.push(`共鸣技能加成: +${(combatStats.skillBonus * 100).toFixed(1)}%`);
+      if (adjustedStats.skillBonus > 0) {
+        damageBonus += adjustedStats.skillBonus;
+        damageBonusSources.push(`共鸣技能加成: +${(adjustedStats.skillBonus * 100).toFixed(1)}%`);
       }
       break;
     case "共鸣解放":
-      if (combatStats.liberationBonus > 0) {
-        damageBonus += combatStats.liberationBonus;
-        damageBonusSources.push(`共鸣解放加成: +${(combatStats.liberationBonus * 100).toFixed(1)}%`);
+      if (adjustedStats.liberationBonus > 0) {
+        damageBonus += adjustedStats.liberationBonus;
+        damageBonusSources.push(`共鸣解放加成: +${(adjustedStats.liberationBonus * 100).toFixed(1)}%`);
       }
       break;
   }
@@ -786,6 +754,43 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     });
   }
 
+  // ========== 角色专属插件加成（链度、风蚀等）==========
+  let receiveDamageMultiplier = 1.0;
+  const pluginMod = character.damagePlugin?.modifyDamageContext?.(input, selectedSkill, adjustedStats, critMode);
+  if (pluginMod) {
+    if (pluginMod.critDMGAdd) {
+      adjustedStats.critDMG += pluginMod.critDMGAdd;
+      // 重新计算暴击倍率（critDMG 已修改）
+      switch (critMode) {
+        case "期望":
+          critMultiplier = Math.min(adjustedStats.critRate, 1) * adjustedStats.critDMG + (1 - Math.min(adjustedStats.critRate, 1));
+          break;
+        case "暴击":
+          critMultiplier = adjustedStats.critDMG;
+          break;
+        case "不暴击":
+          critMultiplier = 1.0;
+          break;
+      }
+      multiplierBoostSources.push(`链度加成：暴击伤害 +${(pluginMod.critDMGAdd * 100).toFixed(0)}%（已计入面板）`);
+    }
+    pluginMod.multiplierBoostEntries?.forEach(e => {
+      multiplierBoost += e.value;
+      multiplierBoostSources.push(e.note);
+    });
+    pluginMod.damageBonusEntries?.forEach(e => {
+      damageBonus += e.value;
+      damageBonusSources.push(e.note);
+    });
+    pluginMod.damageDeepenEntries?.forEach(e => {
+      damageDeepen += e.value;
+      damageDeepenSources.push(e.note);
+    });
+    if (pluginMod.receiveDamageMultiplier) {
+      receiveDamageMultiplier = pluginMod.receiveDamageMultiplier;
+    }
+  }
+
   // 防御公式：1 - 有效防御 / (有效防御 + 800 + 8×角色等级)
   // 怪物防御 = 792 + 8×怪物等级，有效防御 = 怪物防御 × (1 - 无视防御)
   const targetDefense = 792 + 8 * targetLevel;
@@ -803,7 +808,8 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     (1 + damageDeepen) *
     damageBonus *
     defenseMultiplier *
-    resistanceMultiplier;
+    resistanceMultiplier *
+    receiveDamageMultiplier;
   
   return {
     baseDamage,
@@ -815,7 +821,7 @@ export function calculateDamage(input: DamageCalculationInput): DamageCalculatio
     defenseMultiplier,
     resistanceMultiplier,
     finalDamage,
-    combatStats,
+    combatStats: adjustedStats,
     details: {
       multiplierBoostSources,
       damageDeepenSources,

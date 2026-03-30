@@ -37,6 +37,12 @@ export interface CharacterBranchStats {
   branch2: { stat: string; value: number };
 }
 
+export interface ChainBonus {
+  level: number; // 0-6
+  description: string;
+  effectSummary?: string; // 简短效果说明（用于UI显示）
+}
+
 export interface Character {
   baseStats: CharacterBaseStats;
   skills: CharacterSkill[];
@@ -46,6 +52,8 @@ export interface Character {
   outroSkills?: CharacterOutroSkill[];
   effectStacks?: Partial<Record<EffectType, number>>;
   specialConfig?: CharacterSpecialConfig;
+  chainBonuses?: ChainBonus[]; // 链度加成说明
+  damagePlugin?: CharacterDamagePlugin; // 角色专属伤害计算插件（链度加成等）
 }
 
 // ============ 队友配置 ============
@@ -92,10 +100,10 @@ export interface DamageCalculationInput {
     resonanceMode?: "震谐" | "聚爆";
     zhenxieTrackStacks?: number;
     xingchenZhenxieEnabled?: boolean;
-    hasZhenxieInterference?: boolean;
     jubaoTrackStacks?: number;
     jubaoEffectStacks?: number;
     xingchenJubaoEnabled?: boolean;
+    chainLevel?: number; // 共鸣链等级 0-6
   };
   extraBonuses?: Array<{
     zone: "倍率提升" | "伤害加深" | "伤害加成" | "无视防御" | "无视抗性";
@@ -104,6 +112,22 @@ export interface DamageCalculationInput {
     /** 生效范围：全部 / 按技能大类 / 按技能名 */
     filterMode?: "all" | "byCategory" | "byName";
     /** filterMode 为 byCategory 时存 SkillCategory[], 为 byName 时存技能名数组 */
+    filterValues?: string[];
+  }>;
+  /** 基础加成：直接修改面板属性（如攻击力%、暴击伤害等），可按技能大类/名称/伤害量类型过滤 */
+  extraBaseBonuses?: Array<{
+    /**
+     * 属性类型：
+     *   大攻击 / 大生命 / 大防御 — 百分比（如 0.1 = +10% 基础攻击）
+     *   暴击率 / 暴击伤害 / 共鸣效率 — 直接加到对应面板值（小数，如 1.5 = +150%）
+     *   小攻击 / 小生命 / 小防御 — 固定数值
+     */
+    stat: "大攻击" | "大生命" | "大防御" | "暴击率" | "暴击伤害" | "小攻击" | "小生命" | "小防御" | "共鸣效率";
+    value: number;
+    label?: string;
+    /** 生效范围：全部 / 按技能大类 / 按技能名 / 按伤害量类型 */
+    filterMode?: "all" | "byCategory" | "byName" | "byDamageType";
+    /** 对应 filterMode 的值列表 */
     filterValues?: string[];
   }>;
 }
@@ -145,4 +169,44 @@ export interface DamageDistribution {
   damageType: import("./bases").DamageType;
   totalDamage: number;
   percentage: number;
+}
+
+// ============ 角色专属伤害计算插件接口 ============
+
+export interface DamageContextModification {
+  /** 添加到 adjustedStats.critDMG，调用方自动重算 critMultiplier */
+  critDMGAdd?: number;
+  /** 倍率提升区加成条目 */
+  multiplierBoostEntries?: Array<{ value: number; note: string }>;
+  /** 伤害加成区加成条目 */
+  damageBonusEntries?: Array<{ value: number; note: string }>;
+  /** 伤害加深区加成条目 */
+  damageDeepenEntries?: Array<{ value: number; note: string }>;
+  /** 覆盖受到伤害提升乘区（默认 1.0，如 6 链 ×1.4）*/
+  receiveDamageMultiplier?: number;
+}
+
+export interface CharacterDamagePlugin {
+  /**
+   * 在 calculateCombatStats 遍历被动时调用：返回 true 则跳过该被动。
+   * 例如爱弥斯的"星与星之间·震谐/聚爆"需根据共鸣模态过滤。
+   */
+  shouldSkipPassive?(passive: CharacterPassiveSkill, input: DamageCalculationInput): boolean;
+  /**
+   * 处理特殊伤害类型（震谐伤害、效应伤害等）。
+   * 返回 number 表示由插件处理完毕；返回 null/undefined 则走通用乘区公式。
+   */
+  calculateSpecialDamage?(
+    input: DamageCalculationInput,
+    selectedSkill: CharacterSkill
+  ): number | null | undefined;
+  /**
+   * 在通用乘区计算完成后、最终公式之前，注入角色专属链度/风蚀等加成。
+   */
+  modifyDamageContext?(
+    input: DamageCalculationInput,
+    selectedSkill: CharacterSkill,
+    adjustedStats: CombatStats,
+    critMode: "期望" | "暴击" | "不暴击"
+  ): DamageContextModification | void;
 }

@@ -24,6 +24,7 @@ export default function Home() {
   
   const [selectedCharName, setSelectedCharName] = useState("卡提希娅");
   const [charLevel, setCharLevel] = useState(90);
+  const [charChainLevel, setCharChainLevel] = useState(0);
   const [selectedWeaponName, setSelectedWeaponName] = useState("不屈命定之冠");
   const [weaponLevel, setWeaponLevel] = useState(90);
   const [weaponResonance, setWeaponResonance] = useState(1);
@@ -32,8 +33,8 @@ export default function Home() {
     skillName: string; 
     count: number; 
     critMode: "期望"|"暴击"|"不暴击";
-    type?: "skill" | "zhenxieInterference"; // skill为普通技能，zhenxieInterference为震谐干涉标记
-  }>>([]);
+    type?: "skill";
+  }>>([]); 
   const [showRotationConfig, setShowRotationConfig] = useState(false);
   const [viewMode, setViewMode] = useState<"技能名字"|"伤害类型"|"技能类型">("技能名字");
   const [damageViewMode, setDamageViewMode] = useState<"期望"|"暴击"|"不暴击">("期望");
@@ -59,6 +60,17 @@ export default function Home() {
     filterValues: string[];
   }>>([]);
   const [extraBonusCounter, setExtraBonusCounter] = useState(1);
+
+  // 基础加成（直接修改面板属性，可按技能过滤）
+  const [extraBaseBonuses, setExtraBaseBonuses] = useState<Array<{
+    id: number;
+    stat: "大攻击" | "大生命" | "大防御" | "暴击率" | "暴击伤害" | "小攻击" | "小生命" | "小防御" | "共鸣效率";
+    value: number; // 百分比类型输入整数，如 10 = 10%；小攻击等将直接逻辑处理
+    label: string;
+    filterMode: "all" | "byCategory" | "byName" | "byDamageType";
+    filterValues: string[];
+  }>>([]); 
+  const [extraBaseBonusCounter, setExtraBaseBonusCounter] = useState(1);
 
   // 角色专属特殊状态（从角色文件的 specialConfig 动态读取 key/defaultValue，统一存放）
   const [characterSpecialStates, setCharacterSpecialStates] = useState<Record<string, string | number | boolean>>({});
@@ -117,13 +129,31 @@ export default function Home() {
         ...char.baseStats,
         level: charLevel
       },
-      passiveSkills: char.passiveSkills.map(skill => ({ ...skill })),
+      passiveSkills: char.passiveSkills.map(skill => {
+        // 3链：爱弥斯的"星与星之间"固有技能直接开启且满层
+        // 伤害计算器会根据共鸣模态只应用对应技能
+        if (charChainLevel >= 3 && char.baseStats.name === "爱弥斯") {
+          if (skill.name === "星与星之间·震谐" || skill.name === "星与星之间·聚爆") {
+            return { ...skill, enabled: true };
+          }
+        }
+        return { ...skill };
+      }),
       skills: char.skills.map(skill => ({
         ...skill,
         skillLevel: skillLevels[skill.skillCategory] || skill.skillLevel
       }))
     };
     setCharacter(newChar);
+    
+    // 3链：爱弥斯的"星与星之间"效应层数自动设为满层
+    if (charChainLevel >= 3 && char.baseStats.name === "爱弥斯") {
+      setEffectStacks(prev => ({
+        ...prev,
+        zhenxieShiftStacks: 3,
+        jubaoEffectStacks: 2
+      }));
+    }
     
     // 同步角色的effectStacks到页面状态
     if (newChar.effectStacks) {
@@ -149,7 +179,7 @@ export default function Home() {
     } else {
       setCharacterSpecialStates({});
     }
-  }, [selectedCharName, charLevel, skillLevels]);
+  }, [selectedCharName, charLevel, charChainLevel, skillLevels]);
   
   // 当武器或等级/谐振变化时更新
   useMemo(() => {
@@ -240,29 +270,19 @@ export default function Home() {
   const rotationDamage = useMemo(() => {
     if (!character || !weapon || skillRotation.length === 0) return null;
     
-    // 构建技能流程，并跟踪震谐干涉标记状态
-    let hasZhenxieInterferenceActive = false;
+    // 构建技能流程
     const rotation = skillRotation.map(item => {
-      // 如果是震谐干涉标记，设置标记为激活状态
-      if (item.type === "zhenxieInterference") {
-        hasZhenxieInterferenceActive = true;
-        return null; // 震谐干涉标记本身不产生伤害
-      }
-      
       const skill = character.skills.find((s: CharacterSkill) => s.name === item.skillName);
-      // 使用全局伤害模式覆盖，并传递当前的震谐干涉标记状态
       return skill ? { 
         ...item, 
         critMode: damageViewMode, 
-        skill,
-        hasZhenxieInterference: hasZhenxieInterferenceActive 
+        skill
       } : null;
     }).filter(Boolean) as Array<{ 
       skillName: string; 
       count: number; 
       critMode: "期望"|"暴击"|"不暴击"; 
       skill: CharacterSkill;
-      hasZhenxieInterference: boolean;
     }>;
 
     if (rotation.length === 0) return null;
@@ -281,14 +301,19 @@ export default function Home() {
         effectStacks,
         teammates: teammateConfigs,
         extraBonuses: extraBonuses.map(b => ({ ...b, value: b.value / 100 })),
+        extraBaseBonuses: extraBaseBonuses.map(b => {
+          // 小攻击/小生命/小防御 为固定数値，直接使用；其余属性为百分比除以 100
+          const isFlat = b.stat.startsWith("小");
+          return { ...b, value: isFlat ? b.value : b.value / 100 };
+        }),
         aimisiConfig: character.baseStats.name === "爱弥斯" ? {
           resonanceMode: (characterSpecialStates["resonanceMode"] as "震谐" | "聚爆") ?? "震谐",
           zhenxieTrackStacks: (characterSpecialStates["zhenxieTrackStacks"] as number) ?? 0,
           xingchenZhenxieEnabled: (characterSpecialStates["xingchenZhenxieEnabled"] as boolean) ?? false,
-          hasZhenxieInterference: item.hasZhenxieInterference, // 使用技能流程中的震谐干涉标记状态
           jubaoTrackStacks: (characterSpecialStates["jubaoTrackStacks"] as number) ?? 1,
           jubaoEffectStacks: (characterSpecialStates["jubaoEffectStacks"] as number) ?? 0,
-          xingchenJubaoEnabled: (characterSpecialStates["xingchenJubaoEnabled"] as boolean) ?? false
+          xingchenJubaoEnabled: (characterSpecialStates["xingchenJubaoEnabled"] as boolean) ?? false,
+          chainLevel: charChainLevel
         } : undefined
       });
       return {
@@ -308,7 +333,7 @@ export default function Home() {
       results,
       totalDamage
     };
-  }, [character, weapon, echoes, skillRotation, activeEchoSets, echoSetEnabled, damageViewMode, effectStacks, teammateConfigs, targetLevel, enemyResistance, extraBonuses, characterSpecialStates]);
+  }, [character, weapon, echoes, skillRotation, activeEchoSets, echoSetEnabled, damageViewMode, effectStacks, teammateConfigs, targetLevel, enemyResistance, extraBonuses, extraBaseBonuses, characterSpecialStates, charChainLevel]);
 
   // 饼图数据
   const pieChartData = useMemo(() => {
@@ -583,8 +608,45 @@ export default function Home() {
                       ))}
                     </select>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">共鸣链：</span>
+                    <select
+                      value={charChainLevel}
+                      onChange={(e) => setCharChainLevel(Number(e.target.value))}
+                      className="px-2 py-1 border border-gray-300 rounded bg-white text-sm"
+                    >
+                      {[0, 1, 2, 3, 4, 5, 6].map((c) => (
+                        <option key={c} value={c}>{c}链</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
+              
+              {/* 链度加成说明 */}
+              {charChainLevel > 0 && (character as any).chainBonuses && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    {charChainLevel}链加成
+                    {(() => {
+                      const bonus = (character as any).chainBonuses?.find((b: any) => b.level === charChainLevel);
+                      return bonus?.effectSummary ? (
+                        <span className="ml-2 text-sm font-normal text-blue-600">{bonus.effectSummary}</span>
+                      ) : null;
+                    })()}
+                  </h3>
+                  {(() => {
+                    const allBonuses = (character as any).chainBonuses as Array<{ level: number; description: string; effectSummary?: string }>;
+                    const activeBonuses = allBonuses.filter(b => b.level > 0 && b.level <= charChainLevel);
+                    return activeBonuses.map(bonus => (
+                      <div key={bonus.level} className="mb-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <div className="text-sm font-semibold text-indigo-800 mb-1">{bonus.level}链</div>
+                        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line">{bonus.description}</p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
               
               {/* 技能等级调整 */}
               <div className="mt-4 pt-4 border-t border-gray-200">
@@ -772,7 +834,10 @@ export default function Home() {
                       <p className="text-sm text-gray-600 leading-relaxed">{skill.description}</p>
                       
                       {/* ConditionalUI组件 - 显示条件控制UI（如层数slider） */}
-                      {skill.conditionalUI && skill.enabled && (
+                      {skill.conditionalUI && skill.enabled && !(
+                        charChainLevel >= 3 && character.baseStats.name === "爱弥斯" &&
+                        (skill.name === "星与星之间·震谐" || skill.name === "星与星之间·聚爆")
+                      ) && (
                         <ConditionalUIRenderer
                           skill={skill}
                           value={effectStacks[skill.conditionalUI.stateKey] || 0}
@@ -780,6 +845,13 @@ export default function Home() {
                             setEffectStacks({ ...effectStacks, [skill.conditionalUI!.stateKey]: value });
                           }}
                         />
+                      )}
+                      {/* 3链：星与星之间技能直接满层提示 */}
+                      {skill.enabled && charChainLevel >= 3 && character.baseStats.name === "爱弥斯" &&
+                        (skill.name === "星与星之间·震谐" || skill.name === "星与星之间·聚爆") && (
+                        <div className="mt-1 px-2 py-1 bg-indigo-50 rounded text-xs text-indigo-700 border border-indigo-200">
+                          ✦ 3链：已自动满层
+                        </div>
                       )}
                       
                       {/* 只在技能启用时显示效果 */}
@@ -1904,33 +1976,54 @@ export default function Home() {
 
           {/* 额外加成配置 */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-amber-200 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-1">
               <h2 className="text-2xl font-bold text-gray-800">额外加成</h2>
-              <button
-                onClick={() => {
-                  setExtraBonuses([...extraBonuses, {
-                    id: extraBonusCounter,
-                    zone: "伤害加成",
-                    value: 0,
-                    label: "",
-                    filterMode: "all",
-                    filterValues: []
-                  }]);
-                  setExtraBonusCounter(extraBonusCounter + 1);
-                }}
-                className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all duration-200 hover:scale-105 active:scale-95 text-sm"
-              >
-                + 添加加成
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setExtraBonuses([...extraBonuses, {
+                      id: extraBonusCounter,
+                      zone: "伤害加成",
+                      value: 0,
+                      label: "",
+                      filterMode: "all",
+                      filterValues: []
+                    }]);
+                    setExtraBonusCounter(extraBonusCounter + 1);
+                  }}
+                  className="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all duration-200 hover:scale-105 active:scale-95 text-sm"
+                >
+                  + 乘区加成
+                </button>
+                <button
+                  onClick={() => {
+                    setExtraBaseBonuses([...extraBaseBonuses, {
+                      id: extraBaseBonusCounter,
+                      stat: "大攻击",
+                      value: 0,
+                      label: "",
+                      filterMode: "all",
+                      filterValues: []
+                    }]);
+                    setExtraBaseBonusCounter(extraBaseBonusCounter + 1);
+                  }}
+                  className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 hover:scale-105 active:scale-95 text-sm"
+                >
+                  + 基础加成
+                </button>
+              </div>
             </div>
-            {extraBonuses.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-4">暂无额外加成，点击"添加加成"按钮增加</p>
+            <p className="text-xs text-gray-400 mb-4">乘区加成：直接叠加到对应伤害乘区；基础加成：直接修改面板属性（如补偿未建模的 buff）</p>
+
+            {extraBonuses.length === 0 && extraBaseBonuses.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-4">暂无额外加成，点击右上角按钮增加</p>
             ) : (
               <div className="space-y-3">
+                {/* 乘区加成列表 */}
                 {extraBonuses.map((bonus) => (
-                  <div key={bonus.id} className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2">
-                    {/* 第一行：核心配置 */}
+                  <div key={`zone-${bonus.id}`} className="bg-amber-50 p-3 rounded-lg border border-amber-200 space-y-2">
                     <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded shrink-0">乘区</span>
                       {/* 乘区 */}
                       <select
                         value={bonus.zone}
@@ -1985,7 +2078,6 @@ export default function Home() {
                         删除
                       </button>
                     </div>
-                    {/* 第二行：生效范围选择（byCategory / byName 时展开） */}
                     {bonus.filterMode === "byCategory" && (
                       <div className="flex flex-wrap gap-2 pt-1 pl-1">
                         <span className="text-xs text-gray-500 self-center">生效技能类型：</span>
@@ -1995,19 +2087,10 @@ export default function Home() {
                             <label key={cat} className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs border transition-colors ${
                               checked ? "bg-amber-300 border-amber-400 text-amber-900" : "bg-white border-gray-300 text-gray-600"
                             }`}>
-                              <input
-                                type="checkbox"
-                                className="hidden"
-                                checked={checked}
-                                onChange={() => {
-                                  const newVals = checked
-                                    ? bonus.filterValues.filter(v => v !== cat)
-                                    : [...bonus.filterValues, cat];
-                                  setExtraBonuses(extraBonuses.map(b =>
-                                    b.id === bonus.id ? { ...b, filterValues: newVals } : b
-                                  ));
-                                }}
-                              />
+                              <input type="checkbox" className="hidden" checked={checked} onChange={() => {
+                                const newVals = checked ? bonus.filterValues.filter(v => v !== cat) : [...bonus.filterValues, cat];
+                                setExtraBonuses(extraBonuses.map(b => b.id === bonus.id ? { ...b, filterValues: newVals } : b));
+                              }} />
                               {cat}
                             </label>
                           );
@@ -2023,19 +2106,10 @@ export default function Home() {
                             <label key={skill.name} className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs border transition-colors ${
                               checked ? "bg-amber-300 border-amber-400 text-amber-900" : "bg-white border-gray-300 text-gray-600"
                             }`}>
-                              <input
-                                type="checkbox"
-                                className="hidden"
-                                checked={checked}
-                                onChange={() => {
-                                  const newVals = checked
-                                    ? bonus.filterValues.filter(v => v !== skill.name)
-                                    : [...bonus.filterValues, skill.name];
-                                  setExtraBonuses(extraBonuses.map(b =>
-                                    b.id === bonus.id ? { ...b, filterValues: newVals } : b
-                                  ));
-                                }}
-                              />
+                              <input type="checkbox" className="hidden" checked={checked} onChange={() => {
+                                const newVals = checked ? bonus.filterValues.filter(v => v !== skill.name) : [...bonus.filterValues, skill.name];
+                                setExtraBonuses(extraBonuses.map(b => b.id === bonus.id ? { ...b, filterValues: newVals } : b));
+                              }} />
                               {skill.name}
                             </label>
                           );
@@ -2044,6 +2118,137 @@ export default function Home() {
                     )}
                   </div>
                 ))}
+
+                {/* 基础加成列表 */}
+                {extraBaseBonuses.map((bonus) => {
+                  const isFlat = bonus.stat.startsWith("小");
+                  return (
+                    <div key={`base-${bonus.id}`} className="bg-green-50 p-3 rounded-lg border border-green-200 space-y-2">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded shrink-0">基础</span>
+                        {/* 属性类型 */}
+                        <select
+                          value={bonus.stat}
+                          onChange={(e) => setExtraBaseBonuses(extraBaseBonuses.map(b =>
+                            b.id === bonus.id ? { ...b, stat: e.target.value as typeof bonus.stat } : b
+                          ))}
+                          className="px-2 py-1 border border-gray-300 rounded bg-white text-sm"
+                        >
+                          <optgroup label="百分比属性">
+                            <option value="大攻击">百分比攻击力</option>
+                            <option value="大生命">百分比生命值</option>
+                            <option value="大防御">百分比防御力</option>
+                            <option value="暴击率">暴击率</option>
+                            <option value="暴击伤害">暴击伤害</option>
+                            <option value="共鸣效率">共鸣效率</option>
+                          </optgroup>
+                          <optgroup label="固定数值">
+                            <option value="小攻击">固定攻击力</option>
+                            <option value="小生命">固定生命值</option>
+                            <option value="小防御">固定防御力</option>
+                          </optgroup>
+                        </select>
+                        {/* 数值 */}
+                        <input
+                          type="number"
+                          value={bonus.value}
+                          onChange={(e) => setExtraBaseBonuses(extraBaseBonuses.map(b =>
+                            b.id === bonus.id ? { ...b, value: Number(e.target.value) } : b
+                          ))}
+                          className="w-24 px-2 py-1 border border-gray-300 rounded bg-white text-sm"
+                          step={isFlat ? 1 : 0.1}
+                        />
+                        <span className="text-sm text-gray-500">{isFlat ? "（固定值）" : "%"}</span>
+                        {/* 生效范围模式 */}
+                        <select
+                          value={bonus.filterMode}
+                          onChange={(e) => setExtraBaseBonuses(extraBaseBonuses.map(b =>
+                            b.id === bonus.id ? { ...b, filterMode: e.target.value as typeof bonus.filterMode, filterValues: [] } : b
+                          ))}
+                          className="px-2 py-1 border border-gray-300 rounded bg-white text-sm"
+                        >
+                          <option value="all">全部技能</option>
+                          <option value="byCategory">按技能类型</option>
+                          <option value="byDamageType">按伤害类型</option>
+                          <option value="byName">按技能名称</option>
+                        </select>
+                        {/* 备注 */}
+                        <input
+                          type="text"
+                          value={bonus.label}
+                          onChange={(e) => setExtraBaseBonuses(extraBaseBonuses.map(b =>
+                            b.id === bonus.id ? { ...b, label: e.target.value } : b
+                          ))}
+                          placeholder="备注（可选）"
+                          className="flex-1 min-w-20 px-2 py-1 border border-gray-300 rounded bg-white text-sm"
+                        />
+                        <button
+                          onClick={() => setExtraBaseBonuses(extraBaseBonuses.filter(b => b.id !== bonus.id))}
+                          className="px-2 py-1 text-red-600 hover:bg-red-50 rounded text-sm border border-red-300 shrink-0"
+                        >
+                          删除
+                        </button>
+                      </div>
+                      {bonus.filterMode === "byCategory" && (
+                        <div className="flex flex-wrap gap-2 pt-1 pl-1">
+                          <span className="text-xs text-gray-500 self-center">生效技能类型：</span>
+                          {(["常态攻击", "共鸣技能", "共鸣回路", "共鸣解放", "变奏技能"] as const).map(cat => {
+                            const checked = bonus.filterValues.includes(cat);
+                            return (
+                              <label key={cat} className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs border transition-colors ${
+                                checked ? "bg-green-300 border-green-400 text-green-900" : "bg-white border-gray-300 text-gray-600"
+                              }`}>
+                                <input type="checkbox" className="hidden" checked={checked} onChange={() => {
+                                  const newVals = checked ? bonus.filterValues.filter(v => v !== cat) : [...bonus.filterValues, cat];
+                                  setExtraBaseBonuses(extraBaseBonuses.map(b => b.id === bonus.id ? { ...b, filterValues: newVals } : b));
+                                }} />
+                                {cat}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {bonus.filterMode === "byDamageType" && (
+                        <div className="flex flex-wrap gap-2 pt-1 pl-1">
+                          <span className="text-xs text-gray-500 self-center">生效伤害类型：</span>
+                          {(["普攻", "重击", "共鸣技能", "共鸣解放"] as const).map(dt => {
+                            const checked = bonus.filterValues.includes(dt);
+                            return (
+                              <label key={dt} className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs border transition-colors ${
+                                checked ? "bg-green-300 border-green-400 text-green-900" : "bg-white border-gray-300 text-gray-600"
+                              }`}>
+                                <input type="checkbox" className="hidden" checked={checked} onChange={() => {
+                                  const newVals = checked ? bonus.filterValues.filter(v => v !== dt) : [...bonus.filterValues, dt];
+                                  setExtraBaseBonuses(extraBaseBonuses.map(b => b.id === bonus.id ? { ...b, filterValues: newVals } : b));
+                                }} />
+                                {dt}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {bonus.filterMode === "byName" && character && (
+                        <div className="flex flex-wrap gap-2 pt-1 pl-1">
+                          <span className="text-xs text-gray-500 self-center">生效技能：</span>
+                          {character.skills.map(skill => {
+                            const checked = bonus.filterValues.includes(skill.name);
+                            return (
+                              <label key={skill.name} className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs border transition-colors ${
+                                checked ? "bg-green-300 border-green-400 text-green-900" : "bg-white border-gray-300 text-gray-600"
+                              }`}>
+                                <input type="checkbox" className="hidden" checked={checked} onChange={() => {
+                                  const newVals = checked ? bonus.filterValues.filter(v => v !== skill.name) : [...bonus.filterValues, skill.name];
+                                  setExtraBaseBonuses(extraBaseBonuses.map(b => b.id === bonus.id ? { ...b, filterValues: newVals } : b));
+                                }} />
+                                {skill.name}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -2180,32 +2385,24 @@ export default function Home() {
                       </button>
                     </div>
                     {skillRotation.map((item, idx) => (
-                      <div key={idx} className={`flex items-center gap-3 p-3 rounded ${
-                        item.type === "zhenxieInterference" ? "bg-yellow-50 border-2 border-yellow-300" : "bg-gray-50"
-                      }`}>
-                        <span className={`text-sm font-medium flex-1 ${
-                          item.type === "zhenxieInterference" ? "text-yellow-800 font-bold" : "text-gray-700"
-                        }`}>
+                      <div key={idx} className="flex items-center gap-3 p-3 rounded bg-gray-50">
+                        <span className="text-sm font-medium flex-1 text-gray-700">
                           {idx + 1}. {item.skillName}
-                          {item.type === "zhenxieInterference" && " ⚡"}
                         </span>
                         
-                        {/* 震谐干涉标记不显示暴击模式选择 */}
-                        {item.type !== "zhenxieInterference" && (
-                          <select
-                            value={item.critMode}
-                            onChange={(e) => {
-                              const newRotation = [...skillRotation];
-                              newRotation[idx].critMode = e.target.value as any;
-                              setSkillRotation(newRotation);
-                            }}
-                            className="px-2 py-1 border border-gray-300 rounded text-sm"
-                          >
-                            <option value="期望">期望</option>
-                            <option value="暴击">暴击</option>
-                            <option value="不暴击">不暴击</option>
-                          </select>
-                        )}
+                        <select
+                          value={item.critMode}
+                          onChange={(e) => {
+                            const newRotation = [...skillRotation];
+                            newRotation[idx].critMode = e.target.value as any;
+                            setSkillRotation(newRotation);
+                          }}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                        >
+                          <option value="期望">期望</option>
+                          <option value="暴击">暴击</option>
+                          <option value="不暴击">不暴击</option>
+                        </select>
                         
                         <button
                           onClick={() => {
@@ -2518,7 +2715,6 @@ export default function Home() {
                         }
                         // 立即重新计算
                         const rotation = skillRotation
-                          .filter(item => item.type !== "zhenxieInterference") // 过滤掉震谐干涉标记
                           .map(item => {
                             const skill = character.skills.find((s: CharacterSkill) => s.name === item.skillName);
                             return skill ? { skill, count: item.count, critMode: damageViewMode } : null;
@@ -2550,7 +2746,6 @@ export default function Home() {
                         }
                         // 立即重新计算
                         const rotation = skillRotation
-                          .filter(item => item.type !== "zhenxieInterference") // 过滤掉震谐干涉标记
                           .map(item => {
                             const skill = character.skills.find((s: CharacterSkill) => s.name === item.skillName);
                             return skill ? { skill, count: item.count, critMode: damageViewMode } : null;
@@ -2593,7 +2788,6 @@ export default function Home() {
                         }
                         
                         const rotation = skillRotation
-                          .filter(item => item.type !== "zhenxieInterference") // 过滤掉震谐干涉标记
                           .map(item => {
                             const skill = character.skills.find((s: CharacterSkill) => s.name === item.skillName);
                             return skill ? { skill, count: item.count, critMode: damageViewMode } : null;

@@ -84,7 +84,7 @@ export interface CharacterSpecialConfig {
     showWhen: { key: string; value: string | number | boolean };
     buttonLabel: string;
     skillName: string;
-    type: "skill" | "zhenxieInterference";
+    type: "skill";
     buttonClass?: string;
   }>;
 }

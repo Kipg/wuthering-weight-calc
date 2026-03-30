@@ -22,6 +22,7 @@ export type DamageType =
   | "效应伤害"
   | "震谐伤害"
   | "治疗"
+  | "声骸技能伤害"
   | "无伤害";
 
 export type SkillCategory =
