@@ -15,10 +15,10 @@
 
 参考金铃子攻略组 
 【【鸣潮】伤害论 伤害乘区与稀释详解 怎么样才能最大化输出？《鸣潮》底层机制系列01】https://www.bilibili.com/video/BV1VZ42147px?vd_source=84c1b718ffa4d4e245920fbff526636d
-<img width="296" height="244" alt="image" src="https://github.com/user-attachments/assets/274ea55f-172e-4b2b-ace3-ac1e1c609a5e" />
+<img width="296" height="244" alt="555749577-274ea55f-172e-4b2b-ace3-ac1e1c609a5e" src="https://github.com/user-attachments/assets/784c6377-9d78-43de-8b8f-90dad5521df3" />
 
 伤害计算公式：
-<img width="1719" height="408" alt="image" src="https://github.com/user-attachments/assets/8a3cc414-98e6-4c58-8931-632376259933" />
+<img width="1719" height="408" alt="555748011-8a3cc414-98e6-4c58-8931-632376259933" src="https://github.com/user-attachments/assets/4e7b01d3-4fe6-4e03-836b-9da36319a99f" />
 
 
 ## 快速开始
